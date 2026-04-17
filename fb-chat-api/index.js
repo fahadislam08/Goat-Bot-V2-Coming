@@ -657,7 +657,35 @@ function login(loginData, options, callback) {
 		};
 		callback = prCallback;
 	}
-	loginHelper(loginData.appState, loginData.email, loginData.password, globalOptions, callback, prCallback);
+	// Wrap callback to provide friendly error messages for account issues
+	const wrappedCallback = function(err, api) {
+		if (err) {
+			// Normalize suspended/disabled/warning errors into friendly messages
+			if (err.error === "account-suspended" || err.error === "AccountSuspended") {
+				err.message = "[FCA] Facebook account SUSPENDED. Visit https://www.facebook.com/help to appeal.";
+				err.type = "AccountSuspended";
+			} else if (err.error === "AccountDisabled") {
+				err.message = "[FCA] Facebook account DISABLED by Meta. Visit https://www.facebook.com/help for info.";
+				err.type = "AccountDisabled";
+			} else if (err.error === "AccountActionRequired") {
+				err.message = "[FCA] Facebook account WARNING / action required. Log in via browser to resolve.";
+				err.type = "AccountActionRequired";
+			} else if (err.error === "login-approval") {
+				err.message = "[FCA] Login approval (2FA) required. Use err.continue(code) to submit the code.";
+				err.type = "LoginApproval";
+			} else if (
+				typeof err.error === "string" &&
+				(err.error.indexOf("blocked") > -1 || err.error.indexOf("Not logged in") > -1)
+			) {
+				err.message = "[FCA] Facebook blocked this login. Try refreshing appstate.json or log in via browser first.";
+				err.type = "LoginBlocked";
+			}
+			return callback(err);
+		}
+		return callback(null, api);
+	};
+
+	loginHelper(loginData.appState, loginData.email, loginData.password, globalOptions, wrappedCallback, prCallback);
 	return returnPromise;
 }
 
