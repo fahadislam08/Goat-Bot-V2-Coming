@@ -87,7 +87,7 @@ function listenMqtt(defaultFuncs, api, ctx, globalCallback) {
 			headers: {
 				Cookie: cookies,
 				Origin: 'https://www.facebook.com',
-				'User-Agent': ctx.globalOptions.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.64 Safari/537.36',
+				'User-Agent': ctx.globalOptions.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
 				Referer: 'https://www.facebook.com/',
 				Host: new URL(host).hostname
 			},
@@ -95,9 +95,10 @@ function listenMqtt(defaultFuncs, api, ctx, globalCallback) {
 			protocolVersion: 13,
 			binaryType: 'arraybuffer'
 		},
-		keepalive: 60,
+		keepalive: 10,
 		reschedulePings: true,
-		reconnectPeriod: 3
+		reconnectPeriod: 0,  // disable built-in auto-reconnect; we handle it manually with delay
+		connectTimeout: 30 * 1000
 	};
 
 	if (typeof ctx.globalOptions.proxy != "undefined") {
@@ -113,7 +114,10 @@ function listenMqtt(defaultFuncs, api, ctx, globalCallback) {
 		log.error("listenMqtt", err);
 		mqttClient.end();
 		if (ctx.globalOptions.autoReconnect) {
-			listenMqtt(defaultFuncs, api, ctx, globalCallback);
+			log.info("listenMqtt", "MQTT error, reconnecting in 5s...");
+			setTimeout(function () {
+				listenMqtt(defaultFuncs, api, ctx, globalCallback);
+			}, 5000);
 		} else {
 			utils.checkLiveCookie(ctx, defaultFuncs)
 				.then(res => {
@@ -132,7 +136,15 @@ function listenMqtt(defaultFuncs, api, ctx, globalCallback) {
 	});
 
 	mqttClient.on('close', function () {
-
+		log.warn("listenMqtt", "MQTT connection closed.");
+		if (ctx.globalOptions.autoReconnect && ctx.loggedIn) {
+			log.info("listenMqtt", "Reconnecting in 8s...");
+			setTimeout(function () {
+				if (ctx.loggedIn) {
+					listenMqtt(defaultFuncs, api, ctx, globalCallback);
+				}
+			}, 8000);
+		}
 	});
 
 	mqttClient.on('connect', function () {
@@ -166,9 +178,10 @@ function listenMqtt(defaultFuncs, api, ctx, globalCallback) {
 		mqttClient.publish("/set_client_settings", JSON.stringify({ make_user_available_when_in_foreground: true }), { qos: 1 });
 
 		const rTimeout = setTimeout(function () {
+			log.warn("listenMqtt", "No /t_ms received after 15s, reconnecting...");
 			mqttClient.end();
 			listenMqtt(defaultFuncs, api, ctx, globalCallback);
-		}, 5000);
+		}, 15000);
 
 		ctx.tmsWait = function () {
 			clearTimeout(rTimeout);
