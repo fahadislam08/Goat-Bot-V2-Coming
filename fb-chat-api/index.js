@@ -520,7 +520,7 @@ function loginHelper(appState, email, password, globalOptions, callback, prCallb
 			const Regex_Via = /MPageLoadClientMetrics/gs; //default for normal account, can easily get region, without this u can't get region in some case but u can run normal
 			if (!Regex_Via.test(res.body)) {
 				//www.facebook.com
-				globalOptions.userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1";
+				globalOptions.userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 				return utils.get('https://www.facebook.com/', jar, null, globalOptions, { noRef: true }).then(utils.saveCookies(jar));
 			}
 			else return res;
@@ -561,9 +561,30 @@ function loginHelper(appState, email, password, globalOptions, callback, prCallb
 }
 
 function login(loginData, options, callback) {
+	// Support combined loginOptions format:
+	// login({ appState, userAgent, selfListen, listenEvents, ... }, callback)
+	// as well as the original:
+	// login({ appState }, options, callback)
 	if (utils.getType(options) === 'Function' || utils.getType(options) === 'AsyncFunction') {
 		callback = options;
 		options = {};
+	}
+
+	// If loginData itself contains option keys, merge them into options
+	// This supports: login({ appState: ..., userAgent: ..., selfListen: ... }, callback)
+	const loginDataOptionKeys = [
+		'selfListen', 'selfListenEvent', 'listenEvents', 'listenTyping',
+		'updatePresence', 'forceLogin', 'autoMarkDelivery', 'autoMarkRead',
+		'autoReconnect', 'online', 'emitReady', 'userAgent', 'pageID',
+		'proxy', 'logLevel', 'logRecordSize', 'pauseLog'
+	];
+	if (!options || Object.keys(options).length === 0) {
+		options = {};
+		for (const key of loginDataOptionKeys) {
+			if (loginData[key] !== undefined) {
+				options[key] = loginData[key];
+			}
+		}
 	}
 
 	const globalOptions = {
@@ -579,7 +600,7 @@ function login(loginData, options, callback) {
 		logRecordSize: defaultLogRecordSize,
 		online: false,
 		emitReady: false,
-		userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_2) AppleWebKit/600.3.18 (KHTML, like Gecko) Version/8.0.3 Safari/600.3.18"
+		userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 	};
 
 	setOptions(globalOptions, options);
