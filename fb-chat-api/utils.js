@@ -1356,6 +1356,40 @@ function parseAndCheckLogin(ctx, defaultFuncs, retryCount, sourceCall) {
 					sourceCall: sourceCall
 				});
 			}
+
+			// Account suspended
+			if (res.error === 1357004) {
+				throw new CustomError({
+					message: "Your Facebook account has been suspended. Please visit https://www.facebook.com/help to appeal.",
+					error: "AccountSuspended",
+					res: res,
+					statusCode: data.statusCode,
+					sourceCall: sourceCall
+				});
+			}
+
+			// Account disabled
+			if (res.error === 1357031) {
+				throw new CustomError({
+					message: "Your Facebook account has been disabled. Please visit https://www.facebook.com/help for more information.",
+					error: "AccountDisabled",
+					res: res,
+					statusCode: data.statusCode,
+					sourceCall: sourceCall
+				});
+			}
+
+			// Account action required / warning (identity check, policy warning)
+			if (res.error === 1357011 || res.error === 1357014) {
+				throw new CustomError({
+					message: "Facebook requires an account action (warning or identity verification). Please visit https://www.facebook.com and resolve any account warnings.",
+					error: "AccountActionRequired",
+					res: res,
+					statusCode: data.statusCode,
+					sourceCall: sourceCall
+				});
+			}
+
 			return res;
 		});
 	};

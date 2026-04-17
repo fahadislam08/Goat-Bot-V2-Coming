@@ -93,6 +93,41 @@ function buildAPI(globalOptions, html, jar) {
 		log.warn("login", "Checkpoint detected. Please log in with a browser to verify.");
 	}
 
+	// Account suspended / disabled detection
+	if (
+		html.indexOf("account has been suspended") > -1 ||
+		html.indexOf("your account has been disabled") > -1 ||
+		html.indexOf("AccountDisabled") > -1 ||
+		html.indexOf("disabled_account") > -1 ||
+		html.indexOf("/disabled/") > -1
+	) {
+		throw {
+			error: "account-suspended",
+			errordesc: "Your Facebook account has been suspended or disabled. Please visit https://www.facebook.com/help to appeal.",
+			type: "AccountSuspended"
+		};
+	}
+
+	// Account warning / confirmation required
+	if (
+		html.indexOf("account_warning") > -1 ||
+		html.indexOf("confirmation_required") > -1 ||
+		html.indexOf("Your account requires verification") > -1 ||
+		html.indexOf("We suspended your account") > -1 ||
+		html.indexOf("We've suspended your account") > -1
+	) {
+		log.warn("login", "Account warning detected. Your account may require identity verification. Please visit https://www.facebook.com and follow the instructions.");
+	}
+
+	// Confirm ID checkpoint (identity verification)
+	if (
+		html.indexOf("confirm_your_identity") > -1 ||
+		html.indexOf("confirm your identity") > -1 ||
+		html.indexOf("verify your identity") > -1
+	) {
+		log.warn("login", "Identity verification required. Please verify your identity on Facebook before using this API.");
+	}
+
 	const userID = maybeCookie[0].cookieString().split("=")[1].toString();
 	const i_userID = objCookie.i_user || null;
 	log.info("login", `Logged in as ${userID}`);
